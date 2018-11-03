@@ -1,13 +1,10 @@
-obj-m += hello.o
-KVERSION = $(shell uname -r)
+obj-m += mymodule.o
+
+#KERNEL_DIR = $(shell uname -r)
+KERNEL_DIR = /usr/src/linux-headers-$(shell uname -r)
 all:
-	make -C /lib/modules/$(KVERSION)/build M=$(PWD) modules
+	#$(MAKE) -C /lib/modules/$(KERNEL_DIR)/build M=$(PWD) modules
+	$(MAKE) -C $(KERNEL_DIR) SUBDIRS=$(PWD) modules
 
 clean:
-	make -C /lib/modules/$(KVERSION)/build M=$(PWD) clean
-
-#objo-m := hello.o
-#KDIR := /lib/modules/$(shell uname -r)/build
-#PWD := $(shell pwd)
-#default:
-#	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
+	rm -rf *.o *.ko *.mod.* *.symvers *.order *-
