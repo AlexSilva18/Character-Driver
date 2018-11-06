@@ -13,8 +13,8 @@ int majNum;
 
 #define DEVICE_NAME "testDevice"
 
-#define IOCTL_GET_CREATE _IOWR(243, 0, int)
-#define IOCTL_DESTROY _IOWR(243, 1, int)
+#define IOCTL_CREATE_DEVICE _IOWR(243, 0, int)
+#define IOCTL_DESTROY_DEVICE _IOWR(243, 1, int)
 
 //static int mode = 0;
 

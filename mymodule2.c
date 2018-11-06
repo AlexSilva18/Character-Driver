@@ -8,21 +8,24 @@
 #include <asm/uaccess.h>
 #include "mymodule.h"
 
-#define CLASS_NAME "newnewclass"
+#define CLASS_NAME "newDEVICES5"
 
 struct newDevice {
   char data[100];
   struct semaphore sem;
 } virtualDevice;
-
+//char device[15];
 //static struct crypt_dev *crypt_devices = NULL;
-static struct class *crypt_class = NULL;
+struct class *crypt_class;
 struct cdev *mcdev;
 struct class *cl;
+static struct device* new_encrypt_device = NULL;
+static struct device* new_decrypt_device = NULL;
 //int majNum; // defined in the header file
 int retval;
+int flag = 0;
 MODULE_LICENSE("GPL");
-
+int device_number = 7;
 
 /* dev_t devNum; */ // defined in the header file
 
@@ -65,37 +68,66 @@ int device_close(struct inode *inode, struct file *filp){
 /*   .decrypt = device_decrypt */
 /* }; */
 
+char temp_encrypt_device[14];
+char temp_decrypt_device[14];
 static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
   //const char* buffer;
   //int i;
-  struct cdev cdev;
+  struct cdev encrypt_cdev, decrypt_cdev;
   struct file_operations foops;
-  dev_t devno = MKDEV(majNum, cmd);
-  int newNum = devno+2;
+  dev_t devno = MKDEV(majNum, device_number);
   switch(cmd){
-
-  case IOCTL_GET_CREATE:
+    
+  case IOCTL_CREATE_DEVICE:
     printk(KERN_INFO "Enter IOCTL_GET_CREATE\n");
-    printk(KERN_INFO "Creating encryption file 1 2 3\n");
-    //    int error = 0;
 
+    sprintf(temp_encrypt_device, "cryptEncrypt%d", device_number);
+    alloc_chrdev_region(&devno, 0, 1, temp_encrypt_device);
     // create a device driver
-    cdev_init(&cdev, &foops);
-    alloc_chrdev_region(&devno, 1, 2, CLASS_NAME);
-    crypt_class = class_create(THIS_MODULE, CLASS_NAME);
-    device_create(crypt_class, NULL, devno, NULL, "cryptEncrypt4");
-    //cdev_init(&cdev, 0);
-    if (cdev_add(&cdev, devno, 1) == -1){
+    cdev_init(&encrypt_cdev, &foops);
+    new_encrypt_device = device_create(crypt_class, NULL, devno, NULL, temp_encrypt_device);
+    if (IS_ERR(new_encrypt_device)){
+      unregister_chrdev_region(devno, 1);
+      printk(KERN_WARNING "Error creating device");
+      return PTR_ERR(new_encrypt_device);
+    }
+    else
+      printk(KERN_INFO "device created\n");
+    if (cdev_add(&encrypt_cdev, devno, 1) == -1){
+      device_destroy(crypt_class, devno);
+      unregister_chrdev_region(devno, 1);
       printk(KERN_WARNING "Error in attempt to add %s%d", DEVICE_NAME, cmd);
     }
-    return 128;
+
+    // create decrypt device
+    sprintf(temp_decrypt_device, "cryptDecrypt%d", device_number);
+    printk(KERN_INFO "decrypt device: %s\n", temp_decrypt_device);
+    alloc_chrdev_region(&devno+1, 0, 1, temp_decrypt_device);
+    cdev_init(&decrypt_cdev, &foops);
+    new_decrypt_device = device_create(crypt_class, NULL, devno+1, NULL, temp_decrypt_device);
+    if (IS_ERR(new_decrypt_device)){
+      unregister_chrdev_region(devno+1, 1);
+      printk(KERN_WARNING "Error creating device");
+      return PTR_ERR(new_decrypt_device);
+    }
+    else
+      printk(KERN_INFO "device created\n");
+    if (cdev_add(&decrypt_cdev, devno+1, 1) == -1){
+      device_destroy(crypt_class, devno+1);
+      unregister_chrdev_region(devno+1, 1);
+      printk(KERN_WARNING "Error in attempt to add %s%d", DEVICE_NAME, cmd);
+    }
+
+    device_number++;
+    //printk(KERN_INFO "device_number is: %d, flag is %d\n", device_number, flag);
+    return (100 + device_number - 1);
       
-  case IOCTL_DESTROY:
+  case IOCTL_DESTROY_DEVICE:
     device_destroy(crypt_class, devno);
-    class_unregister(crypt_class);
-    class_destroy(crypt_class);
-    cdev_del(&cdev);
-    unregister_chrdev(newNum, "cryptEncrypt1");
+    cdev_del(&encrypt_cdev);
+    cdev_del(&decrypt_cdev);
+    printk(KERN_INFO "device being destroyed: %s\n", virtualDevice.data);
+    unregister_chrdev(devno, virtualDevice.data);
     return 0;
 
   default:
@@ -133,9 +165,16 @@ static int driverInit(void){
   mcdev->ops = &fops;
   mcdev->owner = THIS_MODULE;
 
+  crypt_class = class_create(THIS_MODULE, CLASS_NAME);
+  if (crypt_class == NULL){
+    unregister_chrdev_region(devNum, 1);
+    printk(KERN_ALERT "UNABLE TO CREATE CLASSn");
+  }
   retval = cdev_add(mcdev, devNum, 1);
   if(retval < 0){
     printk(KERN_ALERT "UNABLE TO ADD CDEV TO KERNEL\n");
+    class_destroy(crypt_class);
+    unregister_chrdev_region(devNum, 1);
     return retval;
   }
   
@@ -151,6 +190,7 @@ static void driverExit(void){
   cdev_del(mcdev);
   
   unregister_chrdev_region(devNum, 1);
+  class_destroy(crypt_class);  
   printk(KERN_ALERT "Unloaded module\n");
 }
 

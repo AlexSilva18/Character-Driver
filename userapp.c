@@ -8,9 +8,11 @@
 #define DEVICE "/dev/testDevice"
 
 int main (){
+  int keys[200];
   int i, fd;
+  i = 0;
   char ch, write_buf[100], read_buf[100];
-  int rc, input;
+  int rc, key, input;
   
   fd = open(DEVICE, O_RDWR);
 
@@ -19,35 +21,76 @@ int main (){
     exit(-1);
   }
 
-  printf("r = read from device\nw = write to device\nenter: ");
+  //printf("r = read from device\nw = write to device\nenter: ");
   //scanf("%c", &ch);
-  scanf("%d", &input);
+  printf("(enter 5 to display all options)\n");
+  for(;;){
+    printf("enter option: ");
+    scanf("%d", &input);
+    if (input < 0 || input > 6){
+      printf("invalid input\n");
+      continue;
+    }
+    //switch(ch){
+    switch(input){
+      //case 'w':
+    case 0:
+      //printf("enter data: ");
+      //scanf("%s", write_buf);
+      printf("User Create file\n");
+      key = ioctl(fd, IOCTL_CREATE_DEVICE, 0);
+      if (key == -1){
+	printf("Unable to create file\n");
+      }
+      printf("key is: %d\n", key);
+      /* if (i > 10){ */
+      /* 	keys = realloc(keys, sizeof(key)*10); */
+      /* } */
 
-  //switch(ch){
-  switch(input){
-    //case 'w':
-  case 0:
-    //printf("enter data: ");
-    //scanf("%s", write_buf);
-    printf("User Create file\n");
-      rc = ioctl(fd, IOCTL_GET_CREATE, 0);
-      printf("rc is: %d\n", rc);
+      keys[i] = key;
+      ++i;
       /* write(fd, write_buf, sizeof(write_buf)); */
-    break;
-  case 1:
-    printf("User destroy file\n");
-    rc = ioctl(fd, IOCTL_DESTROY, 0);
-    break;
-    
-    
-    case 'r':
-      read(fd, read_buf, sizeof(read_buf));
-      printf("device: %s\n", read_buf);
-      break;
+      continue;
+    case 1:
+      printf("User destroy file\n");
+      printf("enter device to destroy: ");
+      scanf("%s", write_buf);
+      write(fd, write_buf, sizeof(write_buf));
+      rc = ioctl(fd, IOCTL_DESTROY_DEVICE, 0);
+      if (rc == -1){
+	printf("Unable to destroy device\n\n");
+	continue;
+      }
+      --i;
+      continue;
 
+    case 4:
+      printf("keys:\n");
+      for (int j = 0; j <= i; j++){
+	printf("%d ", keys[j]);
+      }
+      printf("\n\n");
+      continue;
+    case 5:
+      printf("enter 0 - CREATE DEVICE\n");
+      printf("enter 1 - DESTROY DEVICE\n");
+      printf("enter 5 - SHOW ALL OPTIONS\n");
+      printf("enter 6 - END APPLICATION\n");
+      printf("\n");
+      continue;
+    case 6:
+      //free(keys);
+      return 0;
+      
+      /* case 'r': */
+      /*   read(fd, read_buf, sizeof(read_buf)); */
+      /*   printf("device: %s\n", read_buf); */
+      /*   break; */
+      
     default:
       printf("input not recognized\n");
-      break;
+      continue;
+    }
   }
 
   close(fd);
