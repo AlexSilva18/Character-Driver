@@ -1,0 +1,1 @@
+cmd_/home/superuser/OS/assignment2/work_dir/mymodule.ko := ld -r -m elf_x86_64 -z max-page-size=0x200000 -T ./scripts/module-common.lds --build-id  -o /home/superuser/OS/assignment2/work_dir/mymodule.ko /home/superuser/OS/assignment2/work_dir/mymodule.o /home/superuser/OS/assignment2/work_dir/mymodule.mod.o ;  true

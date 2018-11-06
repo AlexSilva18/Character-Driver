@@ -4,21 +4,29 @@
 #include <linux/cdev.h>
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
+#include <linux/cdev.h>
+#include <asm/uaccess.h>
+#include "mymodule.h"
+
+#define CLASS_NAME "newnewclass"
 
 struct newDevice {
   char data[100];
   struct semaphore sem;
 } virtualDevice;
 
+//static struct crypt_dev *crypt_devices = NULL;
+static struct class *crypt_class = NULL;
 struct cdev *mcdev;
 struct class *cl;
-int majNum;
+//int majNum; // defined in the header file
 int retval;
 MODULE_LICENSE("GPL");
 
-dev_t devNum;
 
-#define DEVICE_NAME   "testDevice"
+/* dev_t devNum; */ // defined in the header file
+
+/* #define DEVICE_NAME   "testDevice" */ // defined in the header file
 
 
 int device_open(struct inode *inode, struct file *filp){
@@ -52,15 +60,61 @@ int device_close(struct inode *inode, struct file *filp){
   return 0;
 }
 
+/* struct file_operations cryptops = { */
+/*   .encrypt = device_encrypt, */
+/*   .decrypt = device_decrypt */
+/* }; */
+
+static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
+  //const char* buffer;
+  //int i;
+  struct cdev cdev;
+  struct file_operations foops;
+  dev_t devno = MKDEV(majNum, cmd);
+  int newNum = devno+2;
+  switch(cmd){
+
+  case IOCTL_GET_CREATE:
+    printk(KERN_INFO "Enter IOCTL_GET_CREATE\n");
+    printk(KERN_INFO "Creating encryption file 1 2 3\n");
+    //    int error = 0;
+
+    // create a device driver
+    cdev_init(&cdev, &foops);
+    alloc_chrdev_region(&devno, 1, 2, CLASS_NAME);
+    crypt_class = class_create(THIS_MODULE, CLASS_NAME);
+    device_create(crypt_class, NULL, devno, NULL, "cryptEncrypt4");
+    //cdev_init(&cdev, 0);
+    if (cdev_add(&cdev, devno, 1) == -1){
+      printk(KERN_WARNING "Error in attempt to add %s%d", DEVICE_NAME, cmd);
+    }
+    return 128;
+      
+  case IOCTL_DESTROY:
+    device_destroy(crypt_class, devno);
+    class_unregister(crypt_class);
+    class_destroy(crypt_class);
+    cdev_del(&cdev);
+    unregister_chrdev(newNum, "cryptEncrypt1");
+    return 0;
+
+  default:
+    return -EINVAL;
+
+  }
+  
+  return 0;
+}
+
+
 struct file_operations fops = {
   .owner = THIS_MODULE,
   .open = device_open,
   .release = device_close,
   .write = device_write,
-  .read = device_read
-
+  .read = device_read,
+  .unlocked_ioctl = device_ioctl
 };
-
 
 
 static int driverInit(void){
@@ -95,7 +149,7 @@ static int driverInit(void){
 
 static void driverExit(void){
   cdev_del(mcdev);
-
+  
   unregister_chrdev_region(devNum, 1);
   printk(KERN_ALERT "Unloaded module\n");
 }
