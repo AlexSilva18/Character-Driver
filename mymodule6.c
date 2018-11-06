@@ -17,7 +17,7 @@ struct newDevice {
 //char device[15];
 //static struct crypt_dev *crypt_devices = NULL;
 struct class *crypt_class;
-struct cdev *mcdev;
+struct cdev mcdev;
 struct class *cl;
 static struct device* new_encrypt_device = NULL;
 static struct device* new_decrypt_device = NULL;
@@ -150,48 +150,56 @@ struct file_operations fops = {
 
 
 static int driverInit(void){
-  retval = alloc_chrdev_region(&devNum, 0, 1, DEVICE_NAME);
-  if(retval < 0){
+  if(alloc_chrdev_region(&devNum, 0, 1, DEVICE_NAME) < 0){
     printk(KERN_ALERT "COULD NOT ALLOCATE MAJOR NUMBER\n");
-    return retval;
+    return -1;
   }
-
-
-  majNum = MAJOR(devNum);
-  printk(KERN_INFO "Major Number is %d\n", majNum);
-  printk(KERN_INFO "\tuse \"mknod -m 666 /dev/%s c %d 0\" for device file\n", DEVICE_NAME, majNum);
-
-  mcdev = cdev_alloc();
-  mcdev->ops = &fops;
-  mcdev->owner = THIS_MODULE;
-
-  crypt_class = class_create(THIS_MODULE, CLASS_NAME);
-  if (crypt_class == NULL){
+  cdev_init(&mcdev, &fops);
+  cl = class_create(THIS_MODULE, CLASS_NAME);
+  if(cl == NULL){
     unregister_chrdev_region(devNum, 1);
-    printk(KERN_ALERT "UNABLE TO CREATE CLASSn");
+    printk(KERN_ALERT "COULD NOT CREATE CLASS\n");
+    return -1;
   }
-  retval = cdev_add(mcdev, devNum, 1);
-  if(retval < 0){
-    printk(KERN_ALERT "UNABLE TO ADD CDEV TO KERNEL\n");
-    class_destroy(crypt_class);
+
+  if(device_create(cl, NULL, devNum, NULL, DEVICE_NAME) == NULL){
+    class_destroy(cl);
     unregister_chrdev_region(devNum, 1);
-    return retval;
+    printk(KERN_ALERT "COULD NOT CREATE DEVICE\n");
+    return -1;
   }
-  
-  
+
+  if(cdev_add(&mcdev, devNum, 1) == -1){
+    device_destroy(cl, devNum);
+    class_destroy(cl);
+    unregister_chrdev_region(devNum, 1);
+    printk(KERN_ALERT "COULD NOT ADD DEVICE\n");
+    return -1;
+  }
+
+  printk(KERN_INFO "Device Created %s", DEVICE_NAME);
+  printk(KERN_INFO "");
+   
   sema_init(&virtualDevice.sem, 1);
   return 0;
+
 }
 
 
 
 
 static void driverExit(void){
-  cdev_del(mcdev);
-  
-  unregister_chrdev_region(devNum, 1);
-  class_destroy(crypt_class);  
+  printk(KERN_INFO "Good bye");
+  printk(KERN_INFO "");
+
+  cdev_del(&mcdev);
+
+  device_destroy(cl, devNum);
+
+  class_destroy(cl);
+  unregister_chrdev(devNum, DEVICE_NAME);  
   printk(KERN_ALERT "Unloaded module\n");
+  printk(KERN_INFO "");
 }
 
 
