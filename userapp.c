@@ -8,11 +8,12 @@
 #define DEVICE "/dev/testDevice"
 
 int main (){
-  int keys[200];
+  int indexes[200];
+  char keys[20];
   int i, fd;
   i = 0;
   char ch, write_buf[100], read_buf[100];
-  int rc, key, input;
+  int rc, index, input;
   
   fd = open(DEVICE, O_RDWR);
 
@@ -35,19 +36,20 @@ int main (){
     switch(input){
       //case 'w':
     case 0:
-      //printf("enter data: ");
-      //scanf("%s", write_buf);
+      printf("enter key: ");
+      scanf("%s", write_buf);
+      write(fd, write_buf, sizeof(write_buf));
       printf("User Create file\n");
-      key = ioctl(fd, IOCTL_CREATE_DEVICE, 0);
-      if (key == -1){
+      index = ioctl(fd, IOCTL_CREATE_DEVICE, 0);
+      if (index == -1){
 	printf("Unable to create file\n");
       }
-      printf("key is: %d\n", key);
+      printf("index is: %d\n", index);
       /* if (i > 10){ */
       /* 	keys = realloc(keys, sizeof(key)*10); */
       /* } */
 
-      keys[i] = key;
+      indexes[i] = index;
       ++i;
       /* write(fd, write_buf, sizeof(write_buf)); */
       continue;

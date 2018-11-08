@@ -10,8 +10,8 @@
 #include "mymodule.h"
 #include <linux/string.h>
 
-#define ENCRYPT_CLASS "EncryptClass12"
-#define DECRYPT_CLASS "DecryptClass12"
+#define ENCRYPT_CLASS "EncryptClass14"
+#define DECRYPT_CLASS "DecryptClass14"
 
 #define CLASS_NAME_MODULE "modClass"
 
@@ -53,10 +53,11 @@ MODULE_LICENSE("GPL");
 
 // struct to store what we need to remove a device
 struct idNode{
-  int key;
+  char key[100];
   struct class *cls;
   dev_t dev;
   char name[100];
+  int index;
 };
 
 
@@ -88,7 +89,12 @@ ssize_t device_read(struct file* filp, char* bufStoreData, size_t bufCount, loff
 
 ssize_t device_write(struct file* filp, const char* bufSourceData, size_t bufCount, loff_t* curOffset){
 
-  printk(KERN_INFO "Writing to device\n");
+  int numChars = 0;
+  const char *curChar;
+  for(curChar = bufSourceData; *curChar != '\0'; curChar+=1){
+    numChars += 1;
+  }
+  printk(KERN_INFO "Writing to device: %s, numChars: %d, sizeof(bufSourceData): %zu\n", bufSourceData, numChars, sizeof(bufSourceData));
   retval = copy_from_user(virtualDevice.data, bufSourceData, bufCount);
   return retval;
 }
@@ -109,8 +115,8 @@ int device_close(struct inode *inode, struct file *filp){
 
 
 // arrays to store the names of the en/decrypt device files
-char temp_encrypt_device[14];
-char temp_decrypt_device[14];
+char temp_encrypt_device[20];
+char temp_decrypt_device[20];
 
 int currMajNumEnc = 0;
 int currMinNumEnc = 0;
@@ -146,7 +152,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     
     // only go in if stmt if it's the first time
     if(boolAllocEncrypt == 0){
-      if(alloc_chrdev_region(&devno, 0, 10, "encrypt12") < 0){
+      if(alloc_chrdev_region(&devno, 0, 10, "encrypt14") < 0){
 	printk(KERN_ALERT "COULD NOT ALLOCATE MAJOR NUMBER FOR %s\n", temp_encrypt_device);
 	return -1;
       }
@@ -175,7 +181,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     
     if (IS_ERR(new_encrypt_device)){
       unregister_chrdev_region(devno, numEncDevices);
-      printk(KERN_WARNING "Error creating encrypt device");
+      printk(KERN_WARNING "Error creating encrypt device: %s", temp_encrypt_device);
       return PTR_ERR(new_encrypt_device);
     }
     else{
@@ -187,7 +193,9 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     newEncNode.cls = crypt_class_encrypt;
     newEncNode.dev = devno;
     strcpy(newEncNode.name, temp_encrypt_device);
-
+    strcpy(newEncNode.key, virtualDevice.data);
+    newEncNode.index = device_number;
+    
     currNodeIndEnc += 1;
     encIdNodes[currNodeIndEnc] = newEncNode;
     // end create encrypt device
@@ -200,7 +208,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     // only go in if stmt if it's the first time
     if(boolAllocDecrypt == 0){
-      if(alloc_chrdev_region(&devno, 0, 10, "decrypt12") < 0){
+      if(alloc_chrdev_region(&devno, 0, 10, "decrypt14") < 0){
 	printk(KERN_ALERT "COULD NOT ALLOCATE MAJOR NUMBER FOR %s\n", temp_decrypt_device);
 	return -1;  
       }
@@ -227,7 +235,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     
     if (IS_ERR(new_decrypt_device)){
       unregister_chrdev_region(devno, numDecDevices);
-      printk(KERN_WARNING "Error creating decrypt device");
+      printk(KERN_WARNING "Error creating decrypt device: %s", temp_decrypt_device);
       return PTR_ERR(new_decrypt_device);
     }
     else{
@@ -238,8 +246,9 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     newDecNode.cls = crypt_class_decrypt;
     newDecNode.dev = devno;
     strcpy(newDecNode.name, temp_decrypt_device);
-
-
+    strcpy(newDecNode.key, virtualDevice.data);
+    newDecNode.index = device_number;
+    
     currNodeIndDec += 1;
     decIdNodes[currNodeIndDec] = newDecNode;        
     // end create decrypt device
@@ -356,7 +365,7 @@ static void driverExit(void){
 
       for(i = 0; i < numEncDevices; i++){
 	currNode = encIdNodes[i];
-	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name);
+	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %d\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name, currNode.key, currNode.index);
 	device_destroy(crypt_class_encrypt, currNode.dev);
       }
       cdev_del(charDevEncrypt);
@@ -370,7 +379,7 @@ static void driverExit(void){
 
       for(i = 0; i < numDecDevices; i++){
 	currNode = decIdNodes[i];
-	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name);
+	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %d\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name, currNode.key, currNode.index);
 	device_destroy(crypt_class_decrypt, currNode.dev);
       }
 
