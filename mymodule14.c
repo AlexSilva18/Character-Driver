@@ -69,6 +69,9 @@ struct idNode decIdNodes[100];
 int boolAllocEncrypt = 0;
 int boolAllocDecrypt = 0;
 
+/*
+###############################################################
+*/
 
 int device_open(struct inode *inode, struct file *filp){
   if(down_interruptible(&virtualDevice.sem) != 0){
@@ -80,12 +83,20 @@ int device_open(struct inode *inode, struct file *filp){
   return 0;
 }
 
+/*
+###############################################################
+*/
+
 ssize_t device_read(struct file* filp, char* bufStoreData, size_t bufCount, loff_t* curOffset){
  
   printk(KERN_INFO "Reading from device\n");
   retval = copy_to_user(bufStoreData, virtualDevice.data, bufCount);
  return retval;  
 }
+
+/*
+###############################################################
+*/
 
 ssize_t device_write(struct file* filp, const char* bufSourceData, size_t bufCount, loff_t* curOffset){
 
@@ -99,6 +110,9 @@ ssize_t device_write(struct file* filp, const char* bufSourceData, size_t bufCou
   return retval;
 }
 
+/*
+###############################################################
+*/
 
 int device_close(struct inode *inode, struct file *filp){
   up(&virtualDevice.sem);
@@ -112,7 +126,9 @@ int device_close(struct inode *inode, struct file *filp){
 /* }; */
 
 
-
+/*
+###############################################################
+*/
 
 // arrays to store the names of the en/decrypt device files
 char temp_encrypt_device[20];
@@ -131,6 +147,10 @@ struct cdev *charDevDecrypt;
 
 struct cdev encrypt_cdev, decrypt_cdev;
 
+/*
+###############################################################
+*/
+
 static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
   //const char* buffer;
   //int i;
@@ -142,6 +162,10 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
   struct idNode newDecNode;
   
   switch(cmd){
+
+/*
+###############################################################
+*/
     
   case IOCTL_CREATE_DEVICE:
     printk(KERN_INFO "Enter IOCTL_GET_CREATE\n");
@@ -258,6 +282,10 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     return (device_number - 1);
       
 
+/*
+###############################################################
+*/
+    
     // still working on this
     // don't call this, idk what will happen
   case IOCTL_DESTROY_DEVICE:
@@ -299,7 +327,9 @@ struct file_operations fops = {
   .unlocked_ioctl = device_ioctl
 };
 
-
+/*
+###############################################################
+*/
 
 
 static int driverInit(void){
@@ -342,7 +372,9 @@ static int driverInit(void){
 
 }
 
-
+/*
+###############################################################
+*/
 
 
 static void driverExit(void){
