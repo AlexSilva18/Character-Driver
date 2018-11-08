@@ -10,8 +10,8 @@
 #include "mymodule.h"
 #include <linux/string.h>
 
-#define ENCRYPT_CLASS "EncryptClass10"
-#define DECRYPT_CLASS "DecryptClass10"
+#define ENCRYPT_CLASS "EncryptClass12"
+#define DECRYPT_CLASS "DecryptClass12"
 
 #define CLASS_NAME_MODULE "modClass"
 
@@ -53,9 +53,9 @@ MODULE_LICENSE("GPL");
 
 // struct to store what we need to remove a device
 struct idNode{
+  int key;
   struct class *cls;
   dev_t dev;
-  //struct cdev cdev;
   char name[100];
 };
 
@@ -123,10 +123,12 @@ int numDecDevices = 0;
 struct cdev *charDevEncrypt;
 struct cdev *charDevDecrypt;
 
+struct cdev encrypt_cdev, decrypt_cdev;
+
 static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
   //const char* buffer;
   //int i;
-  struct cdev encrypt_cdev, decrypt_cdev;
+
   struct file_operations fopsEncrypt;
   struct file_operations fopsDecrypt;
   dev_t devno = MKDEV(majNum, device_number);
@@ -140,23 +142,24 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     // begin create encrypt device
     sprintf(temp_encrypt_device, "cryptEncrypt%d", device_number);
-
+    printk(KERN_INFO "encrypt device: %s\n", temp_decrypt_device);
+    
+    // only go in if stmt if it's the first time
     if(boolAllocEncrypt == 0){
-      if(alloc_chrdev_region(&devno, 0, 10, "encrypt10") < 0){
+      if(alloc_chrdev_region(&devno, 0, 10, "encrypt12") < 0){
 	printk(KERN_ALERT "COULD NOT ALLOCATE MAJOR NUMBER FOR %s\n", temp_encrypt_device);
 	return -1;
       }
       currMajNumEnc = MAJOR(devno);
       currMinNumEnc = MINOR(devno);
       
-
       // initialize charDevice for encrypt
       cdev_init(&encrypt_cdev, &fopsEncrypt);
       charDevEncrypt = &encrypt_cdev;
       encrypt_cdev.owner = THIS_MODULE;
 
       // add charDevice to kernel
-      if(cdev_add(&encrypt_cdev, devno, 10) == -1){
+      if(cdev_add(charDevEncrypt, devno, 10) == -1){
 	device_destroy(crypt_class_encrypt, devno);
 	unregister_chrdev_region(devno, numEncDevices);
 	printk(KERN_WARNING "Error in attempt to add %s", temp_encrypt_device);
@@ -180,28 +183,24 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
       numEncDevices += 1;
     }
 
-
-
-
+    // setup idNode struct
     newEncNode.cls = crypt_class_encrypt;
     newEncNode.dev = devno;
-    //newEncNode.cdev = encrypt_cdev;
     strcpy(newEncNode.name, temp_encrypt_device);
 
     currNodeIndEnc += 1;
     encIdNodes[currNodeIndEnc] = newEncNode;
-
     // end create encrypt device
 
     
-    /*
 
     // begin create decrypt device
     sprintf(temp_decrypt_device, "cryptDecrypt%d", device_number);
     printk(KERN_INFO "decrypt device: %s\n", temp_decrypt_device);
 
+    // only go in if stmt if it's the first time
     if(boolAllocDecrypt == 0){
-      if(alloc_chrdev_region(&devno, 0, 10, "decrypt10") < 0){
+      if(alloc_chrdev_region(&devno, 0, 10, "decrypt12") < 0){
 	printk(KERN_ALERT "COULD NOT ALLOCATE MAJOR NUMBER FOR %s\n", temp_decrypt_device);
 	return -1;  
       }
@@ -210,9 +209,10 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
       // initialize charDevice for decrypt
       cdev_init(&decrypt_cdev, &fopsDecrypt);
+      charDevDecrypt = &decrypt_cdev;
       decrypt_cdev.owner = THIS_MODULE;
 
-      if(cdev_add(&decrypt_cdev, devno, 10) == -1){
+      if(cdev_add(charDevDecrypt, devno, 10) == -1){
 	device_destroy(crypt_class_decrypt, devno);
 	unregister_chrdev_region(devno, numDecDevices);
 	printk(KERN_WARNING "Error in attempt to add %s", temp_decrypt_device);
@@ -235,28 +235,24 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
       numDecDevices += 1;
     }
 
-    
-    
     newDecNode.cls = crypt_class_decrypt;
     newDecNode.dev = devno;
-    newDecNode.cdev = &decrypt_cdev;
-    newDecNode.name = temp_decrypt_device;
+    strcpy(newDecNode.name, temp_decrypt_device);
 
 
     currNodeIndDec += 1;
-    decIdNodes[currNodeIndDec] = newDecNode;
-        
+    decIdNodes[currNodeIndDec] = newDecNode;        
     // end create decrypt device
-    */
-
     
     device_number++;
     //printk(KERN_INFO "device_number is: %d, flag is %d\n", device_number, flag);
     return (device_number - 1);
       
+
+    // still working on this
+    // don't call this, idk what will happen
   case IOCTL_DESTROY_DEVICE:
 
-    
     cdev_del(charDevEncrypt);
     cdev_del(charDevDecrypt);
     device_destroy(crypt_class_encrypt, encIdNodes[currNodeIndEnc].dev);
@@ -266,7 +262,6 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     printk(KERN_INFO "device being destroyed: %s\n", virtualDevice.data);
     unregister_chrdev(devno, virtualDevice.data);
     return 0;
-    
     
     /*
     device_destroy(crypt_class, devno);
@@ -309,8 +304,6 @@ static int driverInit(void){
   mcdev = cdev_alloc();
   mcdev->ops = &fops;
   mcdev->owner = THIS_MODULE;
-
-  //cdev_init(mcdev, &fops);
   
   majNum = MAJOR(devNum);
 
@@ -320,52 +313,18 @@ static int driverInit(void){
   printk(KERN_INFO "Major number is %d\n", majNum);
   printk(KERN_INFO "\tuse \"sudo mknod -m 666 /dev/%s c %d 0\" for device file\n", DEVICE_NAME, majNum);
     
+  // initialize both classes for encrypt/decrypt
   crypt_class_encrypt = class_create(THIS_MODULE, ENCRYPT_CLASS);
   crypt_class_decrypt = class_create(THIS_MODULE, DECRYPT_CLASS);
+  
   if(crypt_class_encrypt == NULL || crypt_class_decrypt == NULL ){
-    //unregister_chrdev_region(devNum, 1);
     printk(KERN_ALERT "COULD NOT CREATE CLASS cryptclass\n");
     return -1;
   }
-  else
+  else{
     boolCryptCreated = 1;
-
-  
-  /*
-  cl = class_create(THIS_MODULE, CLASS_NAME_MODULE);
-  if(cl == NULL){
-    unregister_chrdev_region(devNum, 1);
-    printk(KERN_ALERT "COULD NOT CREATE CLASS\n");
-    return -1;
   }
-
-  if(device_create(cl, NULL, devNum, NULL, DEVICE_NAME) == NULL){
-    class_destroy(cl);
-    unregister_chrdev_region(devNum, 1);
-    printk(KERN_ALERT "COULD NOT CREATE DEVICE\n");
-    return -1;
-  }
-
-  if(cdev_add(&mcdev, devNum, 1) == -1){
-    device_destroy(cl, devNum);
-    class_destroy(cl);
-    unregister_chrdev_region(devNum, 1);
-    printk(KERN_ALERT "COULD NOT ADD DEVICE\n");
-    return -1;
-  }
-  */
-
-  
-
-  /*
-  if(cdev_add(mcdev, devNum, 1) < 0){
-    printk(KERN_ALERT "COULD NOT ADD MODULE");
-    class_destroy(crypt_class);
-    unregister_chrdev_region(devNum, 1);
-    return -1;
-  }
-  */
-  
+    
   printk(KERN_INFO "Device Created %s", DEVICE_NAME);
   printk(KERN_INFO "");
   
@@ -381,30 +340,25 @@ static void driverExit(void){
   printk(KERN_INFO "Good bye");
   printk(KERN_INFO "");
 
-
   // destroy en/decrypt devices
   if(boolCryptCreated == 1){
     int i;
     struct idNode currNode;
-    //struct cdev *charDev;
     dev_t dev;
+    
     // unregister module
     cdev_del(mcdev);
     unregister_chrdev_region(devNum, 1);
 
-    
-
     if(numEncDevices > 0){
       dev = encIdNodes[0].dev;
       printk(KERN_INFO "numEncDevices = %d", numEncDevices);
-      //charDev = &encIdNodes[0].cdev;
 
       for(i = 0; i < numEncDevices; i++){
 	currNode = encIdNodes[i];
 	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name);
 	device_destroy(crypt_class_encrypt, currNode.dev);
       }
-    
       cdev_del(charDevEncrypt);
     }
 
@@ -413,7 +367,6 @@ static void driverExit(void){
     if(numDecDevices > 0){
       printk(KERN_INFO "numDecDevices = %d", numDecDevices);
       dev = decIdNodes[0].dev;
-      //charDev = &decIdNodes[0].cdev;
 
       for(i = 0; i < numDecDevices; i++){
 	currNode = decIdNodes[i];
@@ -422,10 +375,7 @@ static void driverExit(void){
       }
 
       cdev_del(charDevDecrypt);
-      
     }
-  
-
   
     if(crypt_class_encrypt != NULL)
       class_destroy(crypt_class_encrypt);
@@ -435,14 +385,6 @@ static void driverExit(void){
 
   }
   
-  /*
-  if(crypt_class_encrypt != NULL)
-    class_destroy(crypt_class_encrypt);
-
-  if(crypt_class_decrypt != NULL)
-    class_destroy(crypt_class_decrypt);
-  */
-
   printk(KERN_ALERT "Unloaded module\n");
   printk(KERN_INFO "");
 }
