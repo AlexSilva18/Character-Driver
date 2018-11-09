@@ -47,9 +47,9 @@ int main () {
       printf("enter 0 - SHOW ALL OPTIONS\n");
       printf("enter 1 - CREATE DEVICE\n");
       printf("enter 2 - DESTROY DEVICE\n");
-      printf("enter 3 - ENCRYPT MESSAGE\n");
-      printf("enter 4 - DECRYPT MESSAGE\n");
-      printf("enter 5 - CHANGE DEVICE KEY\n");
+      printf("enter 3 - CHANGE DEVICE KEY\n");
+      printf("enter 4 - ENCRYPT MESSAGE\n");
+      printf("enter 5 - DECRYPT MESSAGE\n");
       printf("enter 6 - DISPLAY ALL DEVICE INDEXES\n");
       printf("enter 7 - END APPLICATION\n");
       printf("\n");
