@@ -10,8 +10,8 @@
 #include "mymodule.h"
 #include <linux/string.h>
 
-#define ENCRYPT_CLASS "EncryptClass14"
-#define DECRYPT_CLASS "DecryptClass14"
+#define ENCRYPT_CLASS "EncryptClass18"
+#define DECRYPT_CLASS "DecryptClass18"
 
 #define CLASS_NAME_MODULE "modClass"
 
@@ -57,7 +57,7 @@ struct idNode{
   struct class *cls;
   dev_t dev;
   char name[100];
-  int index;
+  char index[10];
 };
 
 
@@ -146,20 +146,44 @@ struct cdev *charDevEncrypt;
 struct cdev *charDevDecrypt;
 
 struct cdev encrypt_cdev, decrypt_cdev;
+struct file_operations fopsEncrypt;
+struct file_operations fopsDecrypt;
+
+
 
 /*
 ###############################################################
 */
 
+
+struct idNode destroyEncNode;
+struct idNode destroyDecNode;
+struct idNode currNode;
+struct idNode *tempEnc0;
+//struct idNode *tempEnc1;
+struct idNode *tempDec0;
+//struct idNode *tempDec1;
+dev_t firstDevEnc, firstDevDec;
 static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
   //const char* buffer;
   //int i;
 
-  struct file_operations fopsEncrypt;
-  struct file_operations fopsDecrypt;
   dev_t devno = MKDEV(majNum, device_number);
   struct idNode newEncNode;
   struct idNode newDecNode;
+
+  // vars for case destroy device
+  char index[10];
+  int i = 0;
+  int destroyIndex = -1;
+  char *currChar = index;
+  int numChars = 0;
+  // currNodeIndEnc is last element in array
+  int endIndex = currNodeIndEnc;
+  //struct idNode *ptrEncNode = &destroyEncNode;
+  //struct idNode *ptrDecNode = &destroyDecNode;
+  //struct idNode *ptrCurrNode = &currNode;
+
   
   switch(cmd){
 
@@ -176,12 +200,13 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     
     // only go in if stmt if it's the first time
     if(boolAllocEncrypt == 0){
-      if(alloc_chrdev_region(&devno, 0, 10, "encrypt14") < 0){
+      if(alloc_chrdev_region(&devno, 0, 10, "encrypt18") < 0){
 	printk(KERN_ALERT "COULD NOT ALLOCATE MAJOR NUMBER FOR %s\n", temp_encrypt_device);
 	return -1;
       }
       currMajNumEnc = MAJOR(devno);
       currMinNumEnc = MINOR(devno);
+      firstDevEnc = devno;
       
       // initialize charDevice for encrypt
       cdev_init(&encrypt_cdev, &fopsEncrypt);
@@ -218,7 +243,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     newEncNode.dev = devno;
     strcpy(newEncNode.name, temp_encrypt_device);
     strcpy(newEncNode.key, virtualDevice.data);
-    newEncNode.index = device_number;
+    sprintf(newEncNode.index, "%d", device_number);
     
     currNodeIndEnc += 1;
     encIdNodes[currNodeIndEnc] = newEncNode;
@@ -232,13 +257,13 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     // only go in if stmt if it's the first time
     if(boolAllocDecrypt == 0){
-      if(alloc_chrdev_region(&devno, 0, 10, "decrypt14") < 0){
+      if(alloc_chrdev_region(&devno, 0, 10, "decrypt18") < 0){
 	printk(KERN_ALERT "COULD NOT ALLOCATE MAJOR NUMBER FOR %s\n", temp_decrypt_device);
 	return -1;  
       }
       currMajNumDec = MAJOR(devno);
       currMinNumDec = MINOR(devno);
-
+      firstDevDec = devno;
       // initialize charDevice for decrypt
       cdev_init(&decrypt_cdev, &fopsDecrypt);
       charDevDecrypt = &decrypt_cdev;
@@ -271,7 +296,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     newDecNode.dev = devno;
     strcpy(newDecNode.name, temp_decrypt_device);
     strcpy(newDecNode.key, virtualDevice.data);
-    newDecNode.index = device_number;
+    sprintf(newDecNode.index, "%d", device_number);
     
     currNodeIndDec += 1;
     decIdNodes[currNodeIndDec] = newDecNode;        
@@ -281,33 +306,70 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     //printk(KERN_INFO "device_number is: %d, flag is %d\n", device_number, flag);
     return (device_number - 1);
       
-
 /*
 ###############################################################
 */
-    
+
     // still working on this
     // don't call this, idk what will happen
   case IOCTL_DESTROY_DEVICE:
 
-    cdev_del(charDevEncrypt);
-    cdev_del(charDevDecrypt);
-    device_destroy(crypt_class_encrypt, encIdNodes[currNodeIndEnc].dev);
-    device_destroy(crypt_class_decrypt, decIdNodes[currNodeIndDec].dev);
+    for(currChar = virtualDevice.data; *currChar != '\0'; currChar+=1){
+      numChars += 1;
+    }
+
+    strncpy(index, virtualDevice.data, numChars+1);
+    i = 0;
+
+    if(endIndex >= 0){
+      while(i <= endIndex){
+	currNode = encIdNodes[i];
+
+	printk(KERN_INFO "inside while\n");
+	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %s\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name, currNode.key, currNode.index);
+
+	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %s\n", MAJOR(decIdNodes[i].dev), MINOR(decIdNodes[i].dev), decIdNodes[i].name, decIdNodes[i].key, decIdNodes[i].index);
+	
+	if(strncmp(index, currNode.index, numChars) == 0){
+	  destroyIndex = i;
+	}
+	i++;
+      }
+    }
+
+    
+    if(destroyIndex == -1){
+      printk(KERN_INFO "Device to destroy not found");
+      return -1;
+    }
+
+    device_destroy(crypt_class_encrypt, encIdNodes[destroyIndex].dev);
+    device_destroy(crypt_class_decrypt, decIdNodes[destroyIndex].dev);
+
+    if(destroyIndex != endIndex){
+      tempEnc0 = &encIdNodes[endIndex];
+      encIdNodes[destroyIndex] = *tempEnc0;
+      
+      tempDec0 = &decIdNodes[endIndex];
+      decIdNodes[destroyIndex] = *tempDec0;
+    }
+
+    
+    destroyEncNode = encIdNodes[destroyIndex];
+    destroyDecNode = decIdNodes[destroyIndex];
+
+    
+    // destroy devices
+    printk(KERN_INFO "Destroying\n");
+    printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %s\n", MAJOR(encIdNodes[destroyIndex].dev), MINOR(encIdNodes[destroyIndex].dev), encIdNodes[destroyIndex].name, encIdNodes[destroyIndex].key, encIdNodes[destroyIndex].index);
+
+    printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %s\n", MAJOR(decIdNodes[destroyIndex].dev), MINOR(decIdNodes[destroyIndex].dev), decIdNodes[destroyIndex].name, decIdNodes[destroyIndex].key, decIdNodes[destroyIndex].index);
+    
     currNodeIndEnc -= 1;
     currNodeIndDec -= 1;
-    printk(KERN_INFO "device being destroyed: %s\n", virtualDevice.data);
-    unregister_chrdev(devno, virtualDevice.data);
-    return 0;
     
-    /*
-    device_destroy(crypt_class, devno);
-    cdev_del(&encrypt_cdev);
-    cdev_del(&decrypt_cdev);
-    printk(KERN_INFO "device being destroyed: %s\n", virtualDevice.data);
-    unregister_chrdev(devno, virtualDevice.data);
+
     return 0;
-    */
     
   default:
     return -EINVAL;
@@ -391,16 +453,20 @@ static void driverExit(void){
     cdev_del(mcdev);
     unregister_chrdev_region(devNum, 1);
 
+
+
+    
     if(numEncDevices > 0){
       dev = encIdNodes[0].dev;
       printk(KERN_INFO "numEncDevices = %d", numEncDevices);
 
       for(i = 0; i < numEncDevices; i++){
 	currNode = encIdNodes[i];
-	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %d\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name, currNode.key, currNode.index);
+	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %s\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name, currNode.key, currNode.index);
+
 	device_destroy(crypt_class_encrypt, currNode.dev);
       }
-      cdev_del(charDevEncrypt);
+      //cdev_del(charDevEncrypt);
     }
 
     i = 0;
@@ -411,13 +477,23 @@ static void driverExit(void){
 
       for(i = 0; i < numDecDevices; i++){
 	currNode = decIdNodes[i];
-	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %d\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name, currNode.key, currNode.index);
+	printk(KERN_INFO "maj: %d\nmin: %d\nname: %s\nkey: %s\nindex: %s\n", MAJOR(currNode.dev), MINOR(currNode.dev), currNode.name, currNode.key, currNode.index);
 	device_destroy(crypt_class_decrypt, currNode.dev);
       }
 
-      cdev_del(charDevDecrypt);
+      //cdev_del(charDevDecrypt);
     }
-  
+
+    if(boolAllocEncrypt){
+      cdev_del(charDevEncrypt);
+      unregister_chrdev_region(firstDevEnc, numEncDevices);
+    }
+
+    if(boolAllocDecrypt){
+      cdev_del(charDevDecrypt);
+      unregister_chrdev_region(firstDevDec, numDecDevices);
+    }
+    
     if(crypt_class_encrypt != NULL)
       class_destroy(crypt_class_encrypt);
 

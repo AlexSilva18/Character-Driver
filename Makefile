@@ -1,4 +1,4 @@
-obj-m += mymodule14.o
+obj-m += mymodule18.o
 
 #KERNEL_DIR = $(shell uname -r)
 KERNEL_DIR = /usr/src/linux-headers-$(shell uname -r)
