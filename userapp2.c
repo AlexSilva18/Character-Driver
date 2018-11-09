@@ -9,6 +9,8 @@
 #include "mymodule2.h"
 
 #define DEVICE "/dev/testDevice"
+char *get_index(char*);
+char *get_input(int);
 
 int main () {
   /* int ret, fd, input, key, i; */
@@ -18,11 +20,19 @@ int main () {
 
   int indexes[200];
   char *keys[30];
-  int i, fd;
+  char encrypt_device[20] = "/dev/cryptEncrypt";
+  char decrypt_device[20] = "/dev/cryptDecrypt";
+  int i, fd, device_fd;
+  char device_index[4];
+  const char *currChar;
+  /* char index[4]; */
+  char *index;
+  
   i = 0;
-  char ch, write_buf[100], read_buf[100];
-  int rc, ret, index, input;
-
+  /* char ch, write_buf[100],temp_buf[100], read_buf[100]; */
+  char ch, *write_buf,temp_buf[100], read_buf[100];
+  int rc, ret, input, rtc;
+  /* int index; */
   printf("Starting userspace program...\n");
   
   fd = open(DEVICE, O_RDWR);
@@ -50,28 +60,33 @@ int main () {
       printf("enter 3 - CHANGE DEVICE KEY\n");
       printf("enter 4 - ENCRYPT MESSAGE\n");
       printf("enter 5 - DECRYPT MESSAGE\n");
-      printf("enter 6 - DISPLAY ALL DEVICE INDEXES\n");
-      printf("enter 7 - END APPLICATION\n");
-      printf("\n");
+      printf("enter 6 - DISPLAY ALL DEVICE INDEXES/KEYS\n");
+      printf("enter 7 - END APPLICATION\n\n");
       continue;
 
+/*
+###############################################################
+*/
     case 1:
       printf("enter key: ");
-      scanf("%s", write_buf);
-      write(fd, write_buf, sizeof(write_buf));
+      scanf("%s", temp_buf);
+      write(fd, temp_buf, sizeof(temp_buf));
       
       printf("User Create file\n");
-      index = ioctl(fd, IOCTL_CREATE_DEVICE, 0);
+      ret = ioctl(fd, IOCTL_CREATE_DEVICE, 0);
       
-      if (index == -1){
+      if (ret == -1){
 	printf("Unable to create file\n");
       }
       // add items to list
       /* indexes[] += index; */
       /* keys[] += write_buf; */
-      printf("index is: %d\n", index);
+      printf("Device has been created!\ndevice index: %d\n\n", ret);
       continue;
-      
+
+/*
+###############################################################
+*/
     case 2:
       printf("User destroy file\n");
       printf("enter device to destroy: ");
@@ -88,22 +103,32 @@ int main () {
       // remove items to list
       /* indexes[] -= index; */
       /* keys[] -= write_buf; */
+      printf("Device has been destroyed! \n\n");
       continue;
-      
+
+/*
+###############################################################
+*/
     case 3:
       printf("User change key.\n");
-      printf("Enter <key> <dev index>: ");
-      scanf("%s", write_buf);
-      
-      /* printf("Enter <dev index>: "); */
-      /* scanf("%s", write_buf); */
-      /* strcat(write_buf, "#"); */
-      /* printf("Enter <key> "); */
-      /* scanf("%s", temp_buff); */
-      /* strcat(write_buf, (temp_buff + '\0')); */
-      strcat(write_buf, "\0");
-      rc = write(fd, write_buf, sizeof(write_buf));
 
+      write_buf = get_input(0);
+      printf("write_buf: %s \n", write_buf);
+      
+      index = get_index(write_buf);
+      printf("index: %s\n", index);
+      
+      strcat(encrypt_device, (index + '\0'));
+      printf("encrypt_device: %s\n", encrypt_device);
+      /* device_fd = open(encrypt_device, O_RDWR); */
+  
+      /* if(device_fd == -1){ */
+      /* 	printf("device %s either DNE or is locked\n", encrypt_device); */
+      /* 	exit(-1); */
+      /* } */
+
+      rc = write(fd, write_buf, sizeof(write_buf));
+	       
       if (rc < 0) {
 	perror("Failed to write message to the device");
 	//return errno;
@@ -114,12 +139,30 @@ int main () {
 	printf("Unable to change key\n");
 	continue;
       }
+      printf("Key has been updated!\n\n");
       continue;
-	
+
+/*
+###############################################################
+*/
     case 4:
       printf("User encrypt device.\n");
-      printf("Enter <dev index> <plain text> to be encrypted: ");
-      scanf("%s", write_buf);
+
+      write_buf = get_input(1);
+      printf("write_buf: %s \n", write_buf);
+      
+      index = get_index(write_buf);
+      printf("index: %s\n", index);
+      
+      strcat(encrypt_device, index);
+      printf("encrypt_device: %s\n", encrypt_device);
+      
+      /* device_fd = open(encrypt_device, O_RDWR); */
+      
+      /* if(device_fd == -1){ */
+      /* 	printf("device %s either DNE or is locked\n", DEVICE); */
+      /* 	exit(-1); */
+      /* } */
 
       rc = write(fd, write_buf, sizeof(write_buf));
       if (rc < 0) {
@@ -127,12 +170,44 @@ int main () {
 	//	return errno;
 	continue;
       }
+      printf("writing successful\n");
       ret = ioctl(fd, IOCTL_ENCRYPT, 0);
+      if (ret < 0) {
+	printf("Unable to encrypt text\n");
+	continue;
+      }
+      if(read(fd, read_buf, sizeof(read_buf)) < 0){
+	printf("Error reading from device\n");
+	continue;
+      }
+
+      //read(device_fd, read_buf,sizeof(read_buf));
+      //printf("Encrypted text: %s\n\n", read_buf);
       continue;
+
+/*
+###############################################################
+*/
     case 5:
       printf("User decrypt device.\n");
-      printf("Enter <dev index> <cipher text> to be decrypted: ");
-      scanf("%s", write_buf);
+
+      printf("User encrypt device.\n");
+
+      write_buf = get_input(2);
+      printf("write_buf: %s \n", write_buf);
+      
+      index = get_index(write_buf);
+      printf("index: %s\n", index);
+      
+      strcat(decrypt_device, (index + '\0'));
+      printf("decrypt_device: %s\n", decrypt_device);
+      
+      /* device_fd = open(encrypt_device, O_RDWR); */
+      
+      /* if(device_fd == -1){ */
+      /* 	printf("device %s either DNE or is locked\n", DEVICE); */
+      /* 	exit(-1); */
+      /* } */
 
       rc = write(fd, write_buf, sizeof(write_buf));
       if (rc < 0) {
@@ -141,8 +216,12 @@ int main () {
 	continue;
       }
       ret = ioctl(fd, IOCTL_DECRYPT, 0);
+      
       continue;
 
+/*
+###############################################################
+*/
     case 6:
       printf("Indexes: ");
       for (int j = 0; j <= i; j++){
@@ -156,16 +235,71 @@ int main () {
 
       continue;
       
+/*
+###############################################################
+*/
+
     case 7:
         return 0;
 	
     default:
         printf("Input not recognized...\n");
-        continue;
+	break;
+        //continue;
     }
   }
-
+  free(write_buf);
+  free(index);
   close(fd);
   return 0;
 
+}
+
+char *get_index(char* input){
+  const char *currChar;
+  char *index;
+  char temp_index[4];
+  
+  int i = 0;
+  for(currChar = input; *currChar != '\0'; currChar+=1){
+    if (*currChar == '#'){
+      temp_index[i] = '\0';
+      break;
+    }
+    temp_index[i] = *currChar;
+    i++;
+  }
+  index = temp_index;
+  return index;
+}
+
+char *get_input(int flag){
+  char *write_buf,temp_buf[100];
+
+  if (flag == 0){
+    printf("Enter device index: ");
+    scanf("%s", write_buf);
+    strcat(write_buf, "#");
+    printf("Enter new key: ");
+    scanf("%s", temp_buf);
+    strcat(write_buf, (temp_buf + '\0'));
+  }
+  if (flag == 1){
+    printf("Enter device index: ");
+    scanf("%s", write_buf);
+    strcat(write_buf, "#");
+    printf("Enter text to be encrypted:\n");
+    scanf("%s", temp_buf);
+    strcat(write_buf, (temp_buf + '\0'));
+    
+  }
+  if (flag == 2){
+    printf("Enter device index: ");
+    scanf("%s", write_buf);
+    strcat(write_buf, "#");
+    printf("Enter text to be decrypted:\n");
+    scanf("%s", temp_buf);
+    strcat(write_buf, (temp_buf + '\0'));
+  }
+  return write_buf;
 }
