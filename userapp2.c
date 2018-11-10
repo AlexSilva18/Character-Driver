@@ -47,7 +47,10 @@ int main () {
   for (;;) {
     // get user input
     printf("Enter option: ");
-    scanf("%d", &input);
+    char in[10];
+    scanf("%s", &in);
+    input = atoi(in);
+    
     if (input < 0 || input > 7) {
       printf("Invalid input. Try again.\n");
       continue;
@@ -63,7 +66,7 @@ int main () {
       printf("enter 5 - DECRYPT MESSAGE\n");
       printf("enter 6 - DISPLAY ALL DEVICE INDEXES/KEYS\n");
       printf("enter 7 - END APPLICATION\n\n");
-      continue;
+      break;
 
 /*
 ###############################################################
@@ -83,7 +86,7 @@ int main () {
       /* indexes[] += index; */
       /* keys[] += write_buf; */
       printf("Device has been created!\ndevice index: %d\n\n", ret);
-      continue;
+      break;
 
 /*
 ###############################################################
@@ -105,7 +108,7 @@ int main () {
       /* indexes[] -= index; */
       /* keys[] -= write_buf; */
       printf("Device has been destroyed! \n\n");
-      continue;
+      break;
 
 /*
 ###############################################################
@@ -130,13 +133,14 @@ int main () {
       	exit(-1);
       }
 
-      rc = write(fd, write_buf, sizeof(write_buf));
+      rc = write(device_fd, write_buf, sizeof(write_buf));
 	       
       if (rc < 0) {
       	perror("Failed to write message to the device");
       	//return errno;
       	continue;
       }
+      close(device_fd);
       /* rc = ioctl(fd, IOCTL_CHANGE_KEY, 0); */
       /* if (rc < 0) { */
       /* 	printf("Unable to change key\n"); */
@@ -144,7 +148,7 @@ int main () {
       /* } */
       
       printf("Key has been updated!\n\n");
-      continue;
+      break;
 
 /*
 ###############################################################
@@ -181,7 +185,7 @@ int main () {
       /* 	printf("Unable to encrypt text\n"); */
       /* 	continue; */
       /* } */
-      if(read(fd, read_buf, sizeof(read_buf)) < 0){
+      if(read(device_fd, read_buf, sizeof(read_buf)) < 0){
 	printf("Error reading from device\n");
 	continue;
       }
@@ -189,15 +193,13 @@ int main () {
       //read(device_fd, read_buf,sizeof(read_buf));
       printf("Encrypted text: %s\n\n", read_buf);
       close(device_fd);
-      continue;
+      break;
 
 /*
 ###############################################################
 */
     case 5:
       printf("User decrypt device.\n");
-
-      printf("User encrypt device.\n");
 
       write_buf = get_input(2);
       printf("write_buf: %s \n", write_buf);
@@ -208,12 +210,12 @@ int main () {
       strcat(decrypt_device, (index + '\0'));
       printf("decrypt_device: %s\n", decrypt_device);
       
-      /* device_fd = open(encrypt_device, O_RDWR); */
+      device_fd = open(encrypt_device, O_RDWR);
       
-      /* if(device_fd == -1){ */
-      /* 	printf("device %s either DNE or is locked\n", DEVICE); */
-      /* 	exit(-1); */
-      /* } */
+      if(device_fd == -1){
+      	printf("device %s either DNE or is locked\n", DEVICE);
+      	exit(-1);
+      }
 
       rc = write(fd, write_buf, sizeof(write_buf));
       if (rc < 0) {
@@ -221,9 +223,18 @@ int main () {
 	/* return errno; */
 	continue;
       }
-      ret = ioctl(fd, IOCTL_DECRYPT, 0);
+      if(read(device_fd, read_buf, sizeof(read_buf)) < 0){
+	printf("Error reading from device\n");
+	continue;
+      }
+
+      //read(device_fd, read_buf,sizeof(read_buf));
+      printf("Decrypted text: %s\n\n", read_buf);
+      close(device_fd);
+
+      //ret = ioctl(fd, IOCTL_DECRYPT, 0);
       
-      continue;
+      break;
 
 /*
 ###############################################################
@@ -239,7 +250,7 @@ int main () {
       }
       printf("\n\n");
 
-      continue;
+      break;
       
 /*
 ###############################################################
