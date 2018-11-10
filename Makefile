@@ -8,3 +8,5 @@ all:
 
 clean:
 	rm -rf *.o *.ko *.mod.* *.symvers *.order *-
+
+#sudo rmmod mymodule3; sudo rm -r /dev/testDevice; make; sudo insmod mymodule3.ko; sudo mknod -m 666 /dev/testDevice c 498 0; gcc userapp2.c -o userapp; ./userapp 

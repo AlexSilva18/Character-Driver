@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <ctype.h>
 #include "mymodule2.h"
 
@@ -120,6 +121,8 @@ int main () {
       
       strcat(encrypt_device, (index + '\0'));
       printf("encrypt_device: %s\n", encrypt_device);
+
+      int priv = chmod(encrypt_device, 0666);
       device_fd = open(encrypt_device, O_RDWR);
   
       if(device_fd == -1){
@@ -139,6 +142,7 @@ int main () {
       /* 	printf("Unable to change key\n"); */
       /* 	continue; */
       /* } */
+      
       printf("Key has been updated!\n\n");
       continue;
 
@@ -157,32 +161,34 @@ int main () {
       strcat(encrypt_device, index);
       printf("encrypt_device: %s\n", encrypt_device);
       
-      /* device_fd = open(encrypt_device, O_RDWR); */
+      device_fd = open(encrypt_device, O_RDWR);
       
-      /* if(device_fd == -1){ */
-      /* 	printf("device %s either DNE or is locked\n", DEVICE); */
-      /* 	exit(-1); */
-      /* } */
+      if(device_fd == -1){
+      	printf("device %s either DNE or is locked\n", encrypt_device);
+      	exit(-1);
+      }
 
-      rc = write(fd, write_buf, sizeof(write_buf));
+      rc = write(device_fd, write_buf, sizeof(write_buf));
+      
       if (rc < 0) {
 	perror("Failed to write message to the device");
 	//	return errno;
 	continue;
       }
       printf("writing successful\n");
-      ret = ioctl(fd, IOCTL_ENCRYPT, 0);
-      if (ret < 0) {
-	printf("Unable to encrypt text\n");
-	continue;
-      }
+      /* ret = ioctl(fd, IOCTL_ENCRYPT, 0); */
+      /* if (ret < 0) { */
+      /* 	printf("Unable to encrypt text\n"); */
+      /* 	continue; */
+      /* } */
       if(read(fd, read_buf, sizeof(read_buf)) < 0){
 	printf("Error reading from device\n");
 	continue;
       }
 
       //read(device_fd, read_buf,sizeof(read_buf));
-      //printf("Encrypted text: %s\n\n", read_buf);
+      printf("Encrypted text: %s\n\n", read_buf);
+      close(device_fd);
       continue;
 
 /*

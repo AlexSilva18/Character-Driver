@@ -120,10 +120,12 @@ static ssize_t device_read (struct file *, char *, size_t, loff_t *);
 static ssize_t device_write (struct file *, const char *, size_t, loff_t *);
 static int device_release (struct inode *, struct file *);
 static long device_ioctl (struct file *, unsigned int, unsigned long);
-static char *permissions(struct device *, umode_t*);
+static int driver_uevent(struct device *, struct kobj_uevent_env *);
 
+//static int encrypt_open (struct inode *, struct file *);
 static ssize_t encrypt_read (struct file *, char *, size_t, loff_t *);
 static ssize_t encrypt_write (struct file *, const char *, size_t, loff_t *);
+//static int encrypt_release (struct inode *, struct file *);
 
 static ssize_t decrypt_read (struct file *, char *, size_t, loff_t *);
 static ssize_t decrypt_write (struct file *, const char *, size_t, loff_t *);
@@ -158,17 +160,15 @@ struct file_operations dec_fops = {
   .release = device_release,
 };
 
-static char *permissions(struct device *dev, umode_t *mode){
-  if (!mode)
-    return NULL;
-  if (dev->devt ==  MKDEV(majNum, 0))
-    *mode = 0666;
-  return NULL;
+static int driver_uevent(struct device *dev, struct kobj_uevent_env *env){
+  add_uevent_var(env, "DEVMODE=%#o", 0666);
+  return 0;
 }
+
 
 /* void vinegere_cipher (int arg, int devIndex, char * text) { */
 //void vinegere_cipher (int arg, struct idNode currIdNode, char * text) {
-char *vinegere_cipher (int arg, char * text, char *inputKey) {
+void vinegere_cipher (int arg, char * text, char *inputKey, char *return_value) {
   //char * key = encIdNodes[devIndex].key;
   char * key = inputKey;
   int textLen = strlen(text);
@@ -177,9 +177,8 @@ char *vinegere_cipher (int arg, char * text, char *inputKey) {
   char newKey[textLen];
   char encryptedMsg[textLen];
   char decryptedMsg[textLen];
-
-  char *return_value;
-  printk(KERN_INFO "step1\n");
+  //  char *return_value= NULL;
+  
   if (arg == 1) {
 
     // Loop over original key and repeat characters until same length of text
@@ -193,28 +192,32 @@ char *vinegere_cipher (int arg, char * text, char *inputKey) {
     newKey[i] = '\0';
     /* strcpy(inputKey, newKey); // Update the key */
     /* strcpy(inputKey, newKey); // Update the message */
-    printk(KERN_INFO "step2\n");
+  
     // Encryption
     for (i = 0; i < textLen; i++) {
       encryptedMsg[i] = ((text[i] + newKey[i]) % 26) + 'A';
     }
     encryptedMsg[i] = '\0';
-    printk(KERN_INFO "step3\n");
+  
     //strcpy(return_value, encryptedMsg); // Update the message
-    return_value = encryptedMsg;
-    printk(KERN_INFO "step4\n");
+    //return_value = (char*)malloc(sizeof(char)*sizeof(encryptedMsg));
+    //return_value = encryptedMsg;
+
+    memcpy(return_value, encryptedMsg, sizeof(encryptedMsg));
     printk(KERN_INFO "return_value %s\n", return_value);
-    return return_value;
+    return;
   } else {
     // Decryption
     for (i = 0; i < textLen; i++) {
       decryptedMsg[i] = (((encryptedMsg[i] - newKey[i]) + 26) % 26) + 'A';
     }
     decryptedMsg[i] = '\0';
-    return_value = encryptedMsg; // Update the message
-    return return_value;
+    memcpy(return_value, encryptedMsg, sizeof(encryptedMsg));
+    printk(KERN_INFO "return_value %s\n", return_value);
+
+    return;
   }
-  return NULL;
+  return;
 }
 
 static ssize_t encrypt_read (struct file * filep, char * buffer, size_t len, loff_t * offset) {
@@ -262,6 +265,7 @@ static ssize_t encrypt_read (struct file * filep, char * buffer, size_t len, lof
     printk(KERN_INFO "cryptctl: failed to send %d characters to the user\n", ret);
     return -EFAULT;
   }
+  return 0;
 }
 
 static ssize_t decrypt_read (struct file * filep, char * buffer, size_t len, loff_t * offset) {
@@ -319,7 +323,7 @@ static ssize_t encrypt_write (struct file * filep, const char * buffer, size_t l
   //int retval;
   //char * token;
   const char *currChar;
-  char *encrypted_text;
+  char encrypted_text[30];
   struct idNode newEncNode;
 ;
 //printk(KERN_INFO "buffer: %s\n", buffer);
@@ -351,15 +355,12 @@ static ssize_t encrypt_write (struct file * filep, const char * buffer, size_t l
       break;
     }
   }
-  
-  //  sprintf(newEncNode.data, "%s", data); // Appending received string with its length
-  //vinegere_cipher(1, index, newEncNode.data);
-  ///tempNode = &newEncNode;
-  //vinegere_cipher(1, , newEncNode.key);
-  encrypted_text = vinegere_cipher(1, data, newEncNode.key);
+
+  vinegere_cipher(1, data, newEncNode.key, encrypted_text);
   printk("message: %s\n", encrypted_text);
-  /* printk(KERN_INFO "cryptctl: received characters from the user\n"); */
-  /* retval = copy_to_user(newEncNode.data, buffer, len); */
+  strcpy(newEncNode.data, encrypted_text);
+  printk(KERN_INFO "cryptctl: received characters from the user\n");
+  retval = copy_to_user(newEncNode.data, buffer, len);
   //return len;
   return 0;
 }
@@ -398,7 +399,7 @@ static ssize_t decrypt_write (struct file * filep, const char * buffer, size_t l
   sprintf(newDecNode.data, "%s", buffer); // Appending received string with its length
   //vinegere_cipher(2, index, newDecNode.data);
   //vinegere_cipher(2, newDecNode, newDecNode.data);
-  vinegere_cipher(2, newDecNode.data, newDecNode.key);
+  //vinegere_cipher(2, newDecNode.data, newDecNode.key);
   printk(KERN_INFO "newDecNode: %s\n", newDecNode.data);
   printk(KERN_INFO "cryptctl: received characters from the user\n");
   return len;
@@ -411,15 +412,27 @@ static ssize_t decrypt_write (struct file * filep, const char * buffer, size_t l
  * @param filep A pointer to a file object
 */
 static int device_open (struct inode * inodep, struct file * filep) {
-  if (down_interruptible(&virtualDevice.sem) != 0) {
-    printk(KERN_ALERT "cryptctl: device is in use by another process\n");
-    return -EBUSY;
-  } else {
+  /* if (down_interruptible(&virtualDevice.sem) != 0) { */
+  /*   printk(KERN_ALERT "cryptctl: device is in use by another process\n"); */
+  /*   return -EBUSY; */
+  /* } else { */
     virtualDevice.numberOpens++;
     printk(KERN_INFO "cryptctl: device has been opened %d time(s)\n", virtualDevice.numberOpens);
     return 0;
-  }
+    //  }
 }
+
+/* static int encrypt_open (struct inode * inodep, struct file * filep) { */
+/*   printk(KERN_INFO "HERE\n"); */
+/*   if (down_interruptible(&virtualDevice.sem) != 0) { */
+/*     printk(KERN_ALERT "cryptctl: device is in use by another process\n"); */
+/*     return -EBUSY; */
+/*   } else { */
+/*     virtualDevice.numberOpens++; */
+/*     printk(KERN_INFO "cryptctl: device has been opened %d time(s)\n", virtualDevice.numberOpens); */
+/*     return 0; */
+/*   } */
+/* } */
 
 /**
  * This function is called whenever the device is being read from userpsace i.e.
@@ -464,10 +477,16 @@ static ssize_t device_write (struct file * filep, const char * buffer, size_t le
  * the userspace program.
 */
 static int device_release (struct inode * inodep, struct file * filep) {
-  up(&virtualDevice.sem);
+  //  up(&virtualDevice.sem);
   printk(KERN_INFO "cryptctl: device successfully closed\n");
   return 0;
 }
+
+/* static int encrypt_release (struct inode * inodep, struct file * filep) { */
+/*   up(&virtualDevice.sem); */
+/*   printk(KERN_INFO "cryptctl: device successfully closed\n"); */
+/*   return 0; */
+/* } */
 
 static long device_ioctl (struct file * file, unsigned int ioctl_num, unsigned long ioctl_param) {
   // ------------------------------------------ //
@@ -808,8 +827,8 @@ static int driverInit(void){
     boolCryptCreated = 1;
   }
 
-  crypt_class_encrypt->devnode = permissions;
-  crypt_class_decrypt->devnode = permissions;
+  crypt_class_encrypt->dev_uevent = driver_uevent;
+  crypt_class_decrypt->dev_uevent = driver_uevent;
   
     
   printk(KERN_INFO "Device Created %s", DEVICE_NAME);
