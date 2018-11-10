@@ -125,21 +125,21 @@ int main () {
       printf("encrypt_device: %s\n", encrypt_device);
 
       int priv = chmod(encrypt_device, 0666);
-      device_fd = open(encrypt_device, O_RDWR);
+      //device_fd = open(encrypt_device, O_RDWR);
   
-      if(device_fd == -1){
+      if(fd == -1){
       	printf("device %s either DNE or is locked\n", encrypt_device);
       	exit(-1);
       }
 
-      rc = write(device_fd, write_buf, sizeof(write_buf));
+      rc = write(fd, write_buf, sizeof(write_buf));
 	       
       if (rc < 0) {
       	perror("Failed to write message to the device");
       	//return errno;
       	continue;
       }
-      close(device_fd);
+      
       /* rc = ioctl(fd, IOCTL_CHANGE_KEY, 0); */
       /* if (rc < 0) { */
       /* 	printf("Unable to change key\n"); */
