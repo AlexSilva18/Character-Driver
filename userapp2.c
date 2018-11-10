@@ -120,25 +120,25 @@ int main () {
       
       strcat(encrypt_device, (index + '\0'));
       printf("encrypt_device: %s\n", encrypt_device);
-      /* device_fd = open(encrypt_device, O_RDWR); */
+      device_fd = open(encrypt_device, O_RDWR);
   
-      /* if(device_fd == -1){ */
-      /* 	printf("device %s either DNE or is locked\n", encrypt_device); */
-      /* 	exit(-1); */
-      /* } */
+      if(device_fd == -1){
+      	printf("device %s either DNE or is locked\n", encrypt_device);
+      	exit(-1);
+      }
 
       rc = write(fd, write_buf, sizeof(write_buf));
 	       
       if (rc < 0) {
-	perror("Failed to write message to the device");
-	//return errno;
-	continue;
+      	perror("Failed to write message to the device");
+      	//return errno;
+      	continue;
       }
-      rc = ioctl(fd, IOCTL_CHANGE_KEY, 0);
-      if (rc < 0) {
-	printf("Unable to change key\n");
-	continue;
-      }
+      /* rc = ioctl(fd, IOCTL_CHANGE_KEY, 0); */
+      /* if (rc < 0) { */
+      /* 	printf("Unable to change key\n"); */
+      /* 	continue; */
+      /* } */
       printf("Key has been updated!\n\n");
       continue;
 
