@@ -6,7 +6,7 @@
 dev_t devNum;
 int majNum;
 
-#define DEVICE_NAME "testDevice"
+#define DEVICE_NAME "cryptctl"
 
 #define IOCTL_CREATE_DEVICE _IOWR(243, 1, int)
 #define IOCTL_DESTROY_DEVICE _IOWR(243, 2, int)

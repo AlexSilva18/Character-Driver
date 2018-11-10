@@ -200,7 +200,7 @@ void vinegere_cipher (int arg, char * text, char *inputKey, char *return_value) 
   
     
     memcpy(return_value, encryptedMsg, strlen(encryptedMsg)+1);
-    printk(KERN_INFO "return_value %s\n", return_value);
+    //printk(KERN_INFO "return_value %s\n", return_value);
     return;
   } else {
     // Decryption
@@ -226,7 +226,7 @@ static ssize_t encrypt_read (struct file * filep, char * buffer, size_t len, lof
   struct idNode newEncNode;
   /* token = strtok(virtualDevice.data, " "); */
   /* sprintf(index, "%s", token); */
-  printk(KERN_INFO "ENCRYPT READ!\n");
+  //printk(KERN_INFO "ENCRYPT READ!\n");
   for(currChar = virtualDevice.data; *currChar != '\0'; currChar+=1){  
     if (*currChar == '#' && flag == 0){
       index[i] = '\0';
@@ -251,7 +251,7 @@ static ssize_t encrypt_read (struct file * filep, char * buffer, size_t len, lof
   
   // copy_to_user returns 0 on success
   // For encryption to be read back
-  printk(KERN_INFO "ENC REEAD: %s", newEncNode.data);
+  //printk(KERN_INFO "ENC REEAD: %s", newEncNode.data);
   ret = copy_to_user(buffer, newEncNode.data, strlen(newEncNode.data)+1);
 
   if (ret == 0) {
@@ -275,7 +275,7 @@ static ssize_t decrypt_read (struct file * filep, char * buffer, size_t len, lof
   const char* currChar;
   struct idNode newDecNode;
   //token = strtok(virtualDevice.data, " ");
-  printk(KERN_INFO "DECRYPT READ!\n");
+  //printk(KERN_INFO "DECRYPT READ!\n");
   for(currChar = virtualDevice.data; *currChar != '\0'; currChar+=1){  
     if (*currChar == '#' && flag == 0){
       index[i] = '\0';
@@ -342,8 +342,8 @@ static ssize_t encrypt_write (struct file * filep, const char * buffer, size_t l
     i++;
   }
   data[i] = '\0';
-  printk(KERN_INFO "index: %s\n", index);
-  printk(KERN_INFO "data: %s\n", data);
+  /* printk(KERN_INFO "index: %s\n", index); */
+  /* printk(KERN_INFO "data: %s\n", data); */
       
   for(i = 0; i < numEncDevices; i++){
     newEncNode = encIdNodes[i];
@@ -393,8 +393,8 @@ static ssize_t decrypt_write (struct file * filep, const char * buffer, size_t l
     i++;
   }
   data[i] = '\0';
-  printk(KERN_INFO "index: %s\n", index);
-  printk(KERN_INFO "data: %s\n", data);
+  /* printk(KERN_INFO "index: %s\n", index); */
+  /* printk(KERN_INFO "data: %s\n", data); */
 
   
   for(i = 0; i < numEncDevices; i++){

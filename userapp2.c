@@ -9,7 +9,7 @@
 #include <ctype.h>
 #include "mymodule2.h"
 
-#define DEVICE "/dev/testDevice"
+#define DEVICE "/dev/cryptctl"
 char *get_index(char*);
 char *get_input(int);
 
@@ -48,7 +48,7 @@ int main () {
     // get user input
     printf("Enter option: ");
     char in[10];
-    scanf("%s", &in);
+    scanf("%s", in);
     input = atoi(in);
     
     if (input < 0 || input > 7) {
@@ -64,8 +64,7 @@ int main () {
       printf("enter 3 - CHANGE DEVICE KEY\n");
       printf("enter 4 - ENCRYPT MESSAGE\n");
       printf("enter 5 - DECRYPT MESSAGE\n");
-      printf("enter 6 - DISPLAY ALL DEVICE INDEXES/KEYS\n");
-      printf("enter 7 - END APPLICATION\n\n");
+      printf("enter 6 - END APPLICATION\n\n");
       break;
 
 /*
@@ -217,16 +216,16 @@ int main () {
       	exit(-1);
       }
 
-      rc = write(fd, write_buf, sizeof(write_buf));
-      if (rc < 0) {
-	perror("Failed to write message to the device");
-	/* return errno; */
-	continue;
-      }
-      if(read(device_fd, read_buf, sizeof(read_buf)) < 0){
-	printf("Error reading from device\n");
-	continue;
-      }
+      /* rc = write(fd, write_buf, sizeof(write_buf)); */
+      /* if (rc < 0) { */
+      /* 	perror("Failed to write message to the device"); */
+      /* 	/\* return errno; *\/ */
+      /* 	continue; */
+      /* } */
+      /* if(read(device_fd, read_buf, sizeof(read_buf)) < 0){ */
+      /* 	printf("Error reading from device\n"); */
+      /* 	continue; */
+      /* } */
 
       //read(device_fd, read_buf,sizeof(read_buf));
       printf("Decrypted text: %s\n\n", read_buf);
@@ -240,25 +239,10 @@ int main () {
 ###############################################################
 */
     case 6:
-      printf("Indexes: ");
-      for (int j = 0; j <= i; j++){
-	printf("%d \t", indexes[j]);
-      }
-      printf("\nKeys: ");
-      for (int j = 0; j <= i; j++){
-	printf("%s \t", keys[j]);
-      }
-      printf("\n\n");
-
-      break;
-      
+      return 0;
 /*
 ###############################################################
 */
-
-    case 7:
-        return 0;
-	
     default:
         printf("Input not recognized...\n");
 	break;
