@@ -203,7 +203,7 @@ void vinegere_cipher (int arg, char * text, char *inputKey, char *return_value) 
     //return_value = (char*)malloc(sizeof(char)*sizeof(encryptedMsg));
     //return_value = encryptedMsg;
 
-    memcpy(return_value, encryptedMsg, sizeof(encryptedMsg));
+    memcpy(return_value, encryptedMsg, strlen(encryptedMsg)+1);
     printk(KERN_INFO "return_value %s\n", return_value);
     return;
   } else {
@@ -255,7 +255,7 @@ static ssize_t encrypt_read (struct file * filep, char * buffer, size_t len, lof
   
   // copy_to_user returns 0 on success
   // For encryption to be read back
-  ret = copy_to_user(buffer, newEncNode.data, strlen(newEncNode.data));
+  ret = copy_to_user(buffer, newEncNode.data, strlen(newEncNode.data)+1);
 
   if (ret == 0) {
     // Success
@@ -324,7 +324,7 @@ static ssize_t encrypt_write (struct file * filep, const char * buffer, size_t l
   //char * token;
   const char *currChar;
   char encrypted_text[30];
-  struct idNode newEncNode;
+  struct idNode *newEncNode;
 ;
 //printk(KERN_INFO "buffer: %s\n", buffer);
   
@@ -349,18 +349,20 @@ static ssize_t encrypt_write (struct file * filep, const char * buffer, size_t l
   printk(KERN_INFO "data: %s\n", data);
       
   for(i = 0; i < numEncDevices; i++){
-    newEncNode = encIdNodes[i];
-    if (strncmp(newEncNode.index, index, index_size) == 0){
+    *newEncNode = encIdNodes[i];
+    if (strncmp((*newEncNode).index, index, index_size) == 0){
       printk(KERN_INFO "device found!\n");
       break;
     }
   }
 
-  vinegere_cipher(1, data, newEncNode.key, encrypted_text);
+  vinegere_cipher(1, data, newEncNode->key, encrypted_text);
   printk("message: %s\n", encrypted_text);
-  strcpy(newEncNode.data, encrypted_text);
+  strcpy(newEncNode->data, encrypted_text);
   printk(KERN_INFO "cryptctl: received characters from the user\n");
-  retval = copy_to_user(newEncNode.data, buffer, len);
+  //newEncNode->data = encrypted_text;
+  //retval = copy_to_user(encrypted_text, buffer, len);
+  //retval = copy_to_user(buffer, encrypted_text, strlen(encrypted_text)+1);
   //return len;
   return 0;
 }
@@ -371,7 +373,7 @@ static ssize_t decrypt_write (struct file * filep, const char * buffer, size_t l
   char index[4];
   char * token;
   const char* currChar;
-  struct idNode newDecNode;
+  struct idNode *newDecNode;
   /* token = strtok(virtualDevice.data, " "); */
   /* sprintf(index, "%s", token); */
   
@@ -389,14 +391,14 @@ static ssize_t decrypt_write (struct file * filep, const char * buffer, size_t l
     i++;
   }  
   for(i = 0; i < numEncDevices; i++){
-    newDecNode = decIdNodes[i];
-    if (strncmp(newDecNode.index, index, index_size) == 0){
+    *newDecNode = decIdNodes[i];
+    if (strncmp((*newDecNode).index, index, index_size) == 0){
       printk(KERN_INFO "device found!\n");
       break;
     }
   }
   
-  sprintf(newDecNode.data, "%s", buffer); // Appending received string with its length
+  sprintf(newDecNode->data, "%s", buffer); // Appending received string with its length
   //vinegere_cipher(2, index, newDecNode.data);
   //vinegere_cipher(2, newDecNode, newDecNode.data);
   //vinegere_cipher(2, newDecNode.data, newDecNode.key);
